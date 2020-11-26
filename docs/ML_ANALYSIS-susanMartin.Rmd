@@ -1,0 +1,144 @@
+---
+title: "Machine Learning Project"
+author: "suszanna"
+date: "11/25/2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+#### BACKGROUND
+Various devices equipped with embedded accelerometers can be worn on the body during physical exercise to collect data for subsequent analysis of the quality of the exercise after the fact.  These devices are used to measure quality of performance of the movements of arms, legs etc.  Resulting data is trained by resampling with cross validation to come up with reproducible metrics for accuracy and error rates to classify each performance of the exercise.  The data we use was collected from 6 participants who performed one set of 10 repetitions of the Unilateral Dumbbell Biceps Curl in five different variations of the specified exercise:
+* Class A - exactly according to the specification
+* Class B - throwing the elbows to the front
+* Class C - lifting the dumbbell only halfway
+* Class D - lowering the dumbbell only halfway
+* Class E - throwing the hips to the front
+
+#### GOALS
+The goal of this study is to make a reasonable prediction.  To do this, we run models that produce predictions typical of each model.  We compare the metrics of each (accuracy and error rates) & select the best prediction as our outcome.  We focus on the 'classe' variable in the above described training set: A,B,C,D,E.  
+
+```{r}
+library(caret)
+library(rpart)
+library(rpart.plot)
+library(RColorBrewer)
+library(rattle)
+library(randomForest)
+set.seed(101)
+
+```
+#### DATA
+
+LOAD, CLEAN & SPLIT
+```{r}
+training <- read.csv("pml-training.csv", na.strings = c("NA", ""))
+testing <- read.csv("pml-testing.csv", na.strings = c("NA", ""))
+
+dim(training)
+dim(testing)
+table(training$classe)
+```
+
+###### DATA: remove variables with missing values from the training set 
+
+```{r}
+training <- training[, colSums(is.na(training)) == 0]
+testing <- testing[, colSums(is.na(testing)) == 0]
+
+#x <- training$classe
+#x[1:10]; x[5581:5591]; x[9379:9389]; x[12817:12827]; x[16021:16031]; tail(x)
+table(training$classe)
+```
+
+###### DATA: remove irrelevant predictors
+
+```{r}
+trainData <- training[, -c(1:7)]
+testData <- testing[, -c(1:7)]
+
+dim(trainData)
+dim(testData)
+table(trainData$classe)
+table(testData$classe)
+```
+
+###### DATA: split data for cross validation
+
+In order to get out-of-sample errors, we split the cleaned training set trainData into a training set (train, 70%) for prediction and a validation set (validate, 30%) to be used to assess model performance.
+
+```{r}
+set.seed(7826) 
+inTrain <- createDataPartition(trainData$classe, p = 0.7, list = FALSE)
+train <- trainData[inTrain, ]
+validate <- trainData[-inTrain, ]
+
+dim(train)
+dim(validate)
+
+table(train$classe)
+table(validate$classe)
+```
+
+#### APPROACH
+
+TWO PREDICTIVE MODELS ARE RESAMPLED WITH CROSS VALIDATION TO PROVIDE ACCURACY & OUT OF SAMPLE ERROR RATES
+
+```{r}
+
+```
+
+##### PREDICTION MODEL 1: Recursive Partitioning and Regression Tree (rpart)
+0.0526 accuracy/ 0.9470 out-of-sample error.  
+Train the model: for the Training data set, find accuracy for rpart with Model 1.
+
+The resampling method 'cv' (cross validation) is used to train with the trainControl function. A re-sampling method involves repeatedly drawing samples from a training data set and refitting a model to obtain additional information about that model.
+
+```{r}
+con_trol <- trainControl(method = "cv", number = 5)
+model1_rpart <- train(classe ~ ., data = train, method = "rpart", 
+                   trControl = con_trol)
+print(model1_rpart, digits = 4)
+fancyRpartPlot(model1_rpart$finalModel)
+```
+
+##### Support Model 1a: Levels of classe variable clearly rendered
+The bar plot is a simple visual of the distribution of the training set
+```{r}
+model1_predict_rpart <- predict(model1_rpart, train)
+
+plot(model1_predict_rpart, ylim=c(0,7000), col="darkgreen", main="Plot of levels of variable classe within the TrainTrainingSet data set",  xlab="classe", ylab="Frequency")
+```
+
+##### PREDICTION MODEL 2: Random Forest
+0.991 accuracy/ 0.009 out-of-sample error.  
+Train the model: for the Training data set, find accuracy of randomForest model 2
+
+The resampling method 'cv' (cross validation) is used again here to train with the trainControl function.  As a resampling procedure, cross validation is used to evaluate machine learning models on a limited data sample.  It uses a limited sample in order to estimate how the model is expected to perform in general. It is then used to make predictions on data not used during the training of the model.
+
+```{r}
+cont_rol <- trainControl(method="cv", 5)
+model2_rf <- train(classe ~ ., data=train, method="rf",
+                 trControl=cont_rol, ntree=251)
+model2_rf
+plot(model2_rf, log="y")
+```
+
+#### CONCLUSION
+
+As these models indicate, the performance of the Random Forest (RF) method is superior to that of the Recursive Partitioning and Regression Trees (rpart) method. This is useful information, as recursion is generally known to be slow yet accurate. Our outcome shows that the accuracy of the RF model was 0.991 compared to 0.526 of the rpart Model.  The expected out-of-sample error for the RF model is estimated at 0.009, or 0.9%.  In contrast, and the recursive rpart Model shows an out-of-sample error rate of 0.9470 or 95%. Our outcome is not conclusive, but interesting.
+
+#### PREDICTION
+
+The following prediction is our research outcome.  It is based on the Prediction Model 2 (Random Forest) and is applied against our test data.
+
+```{r}
+x <- testData
+
+research_outcome <- predict(model2_rf, newdata=x)
+research_outcome
+```
+
+Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
